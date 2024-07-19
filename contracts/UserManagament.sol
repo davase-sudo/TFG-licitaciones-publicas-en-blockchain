@@ -1,45 +1,93 @@
 // SPDX-License-Identifier: MIT
-// Tells the Solidity compiler to compile only from v0.8.13 to v0.9.0
 pragma solidity ^0.8.13;
 
 contract UserManagament {
-
-    // Mapeo que asocia direcciones de cuentas con un booleano que indica si pueden o no crear licitaciones
-    mapping(address => bool) private users;
-
-    event NuevoUsuario(address indexed usuario);
-
-    constructor() {
-        users[msg.sender] = true;
+    // Estructura para almacenar la información del usuario
+    struct User {
+        string name;
+        bool isRegistered;
+        bool isAdmin;
     }
 
-    function registrarNuevoUsuario() public {
-        require(!users[msg.sender], "Ya estas registrado como usuario");
-        users[msg.sender] = false;
-        emit NuevoUsuario(msg.sender);
+    // Dirección del dueño del contrato (super admin)
+    address public owner;
+
+    // Mapping para almacenar los usuarios por su dirección
+    mapping(address => User) public users;
+    // Array para almacenar las direcciones de los usuarios registrados
+    address[] public userAddresses;
+
+    // Modificador para funciones restringidas a administradores
+    modifier onlyAdmin() {
+        require(users[msg.sender].isAdmin, "Only admin can perform this action");
+        _;
     }
 
-    // Función para permitir que una cuenta pueda crear licitaciones
-    function allowCreatingLicitacion(address account) private {
-        users[account] = true;
+    // Modificador para funciones restringidas al dueño del contrato
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
     }
 
-    // Función para revocar el permiso de una cuenta para crear licitaciones
-    function disallowCreatingLicitacion(address account) private {
-        users[account] = false;
-    }
-    // Función auxiliar para convertir wei a Ether
-    function convertToEther(uint256 amountInWei) internal pure returns (uint256) {
-        return amountInWei / 1 ether;
-    }
-
-    // Función para obtener el saldo en Ether de una cuenta
-    function getBalanceInEther(address account) public view returns (uint256) {
-        // Obtiene el saldo en wei de la cuenta
-        uint256 balanceInWei = account.balance;
-        // Convierte el saldo de wei a Ether
-        return convertToEther(balanceInWei);
+    // Constructor para inicializar el dueño del contrato
+    constructor(address _owner) {
+        owner = _owner;
+        users[owner] = User({
+            name: "Owner",
+            isRegistered: true,
+            isAdmin: true
+        });
+        userAddresses.push(owner);
     }
 
+    // Función para registrar un nuevo usuario
+    function registerUser(address userAddress, string memory _name) public {
+        require(!users[userAddress].isRegistered, "User already registered");
 
+        // Registrar al usuario
+        users[userAddress] = User({
+            name: _name,
+            isRegistered: true,
+            isAdmin: false
+        });
+
+        // Añadir la dirección del usuario al array de direcciones
+        userAddresses.push(userAddress);
+    }
+
+    // Función para verificar si un usuario está registrado
+    function isUserRegistered(address _user) public view returns (bool) {
+        return users[_user].isRegistered;
+    }
+
+    // Función para obtener información del usuario
+    function getUser(address _user) public view returns (string memory name, bool is_admin) {
+        require(users[_user].isRegistered, "User not registered");
+
+        User memory user = users[_user];
+        return (user.name, user.isAdmin);
+    }
+
+    // Función para obtener todas las direcciones de usuarios registrados
+    function getAllUsers() public view returns (address[] memory) {
+        return userAddresses;
+    }
+
+    // Función para verificar si un usuario es administrador
+    function isAdmin(address _user) public view returns (bool) {
+        return users[_user].isAdmin;
+    }
+
+    // Función para asignar el rol de administrador a un usuario (solo el dueño puede hacerlo)
+    function makeAdmin(address _user) public onlyOwner {
+        require(users[_user].isRegistered, "User not registered");
+        users[_user].isAdmin = true;
+    }
+
+    // Función para revocar el rol de administrador a un usuario (solo el dueño puede hacerlo)
+    function revokeAdmin(address _user) public onlyOwner {
+        require(users[_user].isRegistered, "User not registered");
+        users[_user].isAdmin = false;
+    }
 }
+

@@ -1,5 +1,5 @@
-const UserManagament = artifacts.require("UserManagament");
+const TenderManagament = artifacts.require("TenderManagament");
 
 module.exports = function(deployer) {
-  deployer.deploy(UserManagament);
+  deployer.deploy(TenderManagament);
 };
